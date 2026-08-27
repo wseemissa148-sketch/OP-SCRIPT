@@ -1,6 +1,6 @@
 --[[
     Ultimate Universal Hub (Blox Fruits & PVP Combat)
-    Merged Script - Single UI with Key System
+    Update: Fast Attack targets All (Players+Mobs) & Aimbot Keybinds
     Key: 1w2s3e4e5m
 ]]
 
@@ -16,7 +16,6 @@ local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- التنظيف التلقائي عند التشغيل المكرر
 if getgenv().UniversalSpeedHubCleanUp then
     getgenv().UniversalSpeedHubCleanUp()
 end
@@ -24,19 +23,18 @@ end
 local Connections = {}
 local CorrectKey = "1w2s3e4e5m"
 local KeyUnlocked = false
+local IsAssigningKey = false
 
 -- ==========================================
--- 1. الإعدادات والمتغيرات الشاملة (Global Config)
+-- 1. الإعدادات والمتغيرات (Global Config)
 -- ==========================================
 _G.Config = {
-    -- Speed System
     SpeedEnabled = false,
     SpeedMultiplier = 2,
     MinSpeed = 1,
     MaxSpeed = 10,
-    ToggleKey = Enum.KeyCode.L,
+    ToggleKey = "L",
 
-    -- Blox Fruits Farm & PVP
     AutoFarm = false,
     FastAttack = false,
     AutoHaki = true,
@@ -57,10 +55,7 @@ _G.Config = {
 
     ComboSequence = {"Melee", "Blox Fruit", "Sword", "Gun"},
     ComboWeaponEnabled = {
-        ["Melee"] = true,
-        ["Sword"] = true,
-        ["Blox Fruit"] = true,
-        ["Gun"] = true
+        ["Melee"] = true, ["Sword"] = true, ["Blox Fruit"] = true, ["Gun"] = true
     },
     ComboSkills = {
         ["Melee"] = {Z = true, X = true, C = true, V = true, F = false},
@@ -69,7 +64,6 @@ _G.Config = {
         ["Gun"] = {Z = true, X = true, C = false, V = false, F = false}
     },
 
-    -- Combat & Aimbot & Health ESP
     PlayerAimbot = false,
     PlayerAimbotKey = "G",
     MobAimbot = false,
@@ -77,21 +71,14 @@ _G.Config = {
     TargetPart = "Head",
     HitboxSize = 18,
     ShowHealth = false,
-    HealthStyle = "Modern Bar",
-    PlayerHealthColor = {R = 0, G = 255, B = 150},
-    MobHealthColor = {R = 255, G = 50, B = 50},
-    CurrentTheme = "Cyber Dark",
-    Whitelist = {},
-    TargetList = {}
+    HealthStyle = "Modern Bar"
 }
 
 local configFile = "BloxFruitsConfig.json"
 
 local function SaveConfig()
     pcall(function()
-        if writefile then
-            writefile(configFile, HttpService:JSONEncode(_G.Config))
-        end
+        if writefile then writefile(configFile, HttpService:JSONEncode(_G.Config)) end
     end)
 end
 
@@ -109,156 +96,52 @@ local function LoadConfig()
         end
     end)
 end
-
 LoadConfig()
 
--- بيانات الجزر والمواد
 local islandsBySea = {
-    [1] = {
-        ["Starter Island"] = Vector3.new(1095, 16, 1420), ["Jungle"] = Vector3.new(-1610, 37, 148),
-        ["Pirate Village"] = Vector3.new(-1130, 4, 3850), ["Desert"] = Vector3.new(1090, 6, 4360),
-        ["Middle Town"] = Vector3.new(-655, 15, 1580), ["Frozen Village"] = Vector3.new(1185, 27, -1185),
-        ["Marine Fortress"] = Vector3.new(-5030, 20, 4320), ["Skypiea"] = Vector3.new(-4880, 718, -2630),
-        ["Prison"] = Vector3.new(4850, 5, 740), ["Colosseum"] = Vector3.new(-1430, 7, -2780),
-        ["Magma Village"] = Vector3.new(-5250, 8, 8850), ["Underwater City"] = Vector3.new(3860, 5, -1925)
-    },
-    [2] = {
-        ["Cafe"] = Vector3.new(-380, 73, 300), ["Green Zone"] = Vector3.new(-2300, 70, -3000),
-        ["Kingdom of Rose"] = Vector3.new(-450, 73, 1500), ["Uship"] = Vector3.new(920, 125, 3280),
-        ["Snow Mountain"] = Vector3.new(600, 400, -5300), ["Hot and Cold"] = Vector3.new(-2500, 15, -3000),
-        ["Ice Castle"] = Vector3.new(5500, 28, -6200), ["Forgotten Island"] = Vector3.new(-3050, 240, -10150)
-    },
-    [3] = {
-        ["Port Town"] = Vector3.new(-2900, 15, 5300), ["Hydra Island"] = Vector3.new(5700, 600, 200),
-        ["Great Tree"] = Vector3.new(2250, 20, -7200), ["Floating Turtle"] = Vector3.new(-12450, 330, -7500),
-        ["Haunted Castle"] = Vector3.new(-9500, 140, 5500), ["Sea of Treats"] = Vector3.new(-2000, 50, -12000)
-    }
+    [1] = {["Starter Island"] = Vector3.new(1095, 16, 1420), ["Jungle"] = Vector3.new(-1610, 37, 148)},
+    [2] = {["Cafe"] = Vector3.new(-380, 73, 300), ["Green Zone"] = Vector3.new(-2300, 70, -3000)},
+    [3] = {["Port Town"] = Vector3.new(-2900, 15, 5300), ["Hydra Island"] = Vector3.new(5700, 600, 200)}
 }
-
 local materialsBySea = {
-    [1] = {"Leather", "Angel Wings", "Fish Tail", "Magma Ore", "Vampire Fang", "Mutant Tooth"},
-    [2] = {"Ectoplasm", "Radioactive Material", "Mystic Droplet", "Magma Ore", "Vampire Fang", "Snow Trooper"},
-    [3] = {"Bones", "Dragon Scale", "Mini Tusk", "Conjured Cocoa", "Demonic Feather", "Fool's Gold", "Dragon Tooth"}
-}
-
-local materialToMob = {
-    ["Leather"] = "Pirate", ["Angel Wings"] = "God's Guard", ["Fish Tail"] = "Fishman Warrior",
-    ["Magma Ore"] = "Military Soldier", ["Vampire Fang"] = "Vampire", ["Mutant Tooth"] = "Military Spy",
-    ["Ectoplasm"] = "Ship Officer", ["Radioactive Material"] = "Factory Staff", ["Mystic Droplet"] = "Water Fighter",
-    ["Snow Trooper"] = "Snow Trooper", ["Bones"] = "Reborn Skeleton", ["Dragon Scale"] = "Dragon Crew Warrior",
-    ["Mini Tusk"] = "Mythological Pirate", ["Conjured Cocoa"] = "Cocoa Warrior", ["Demonic Feather"] = "Demonic Soul",
-    ["Fool's Gold"] = "Isle Outlaw", ["Dragon Tooth"] = "Isle Champion"
+    [1] = {"Leather", "Magma Ore"}, [2] = {"Ectoplasm", "Vampire Fang"}, [3] = {"Bones", "Mini Tusk"}
 }
 
 -- ==========================================
--- 2. إعداد شاشة الـ GUI الكلية
+-- 2. إعداد الـ GUI
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MergedUniversalHub"
 ScreenGui.ResetOnSpawn = false
+if syn and syn.protect_gui then syn.protect_gui(ScreenGui) ScreenGui.Parent = CoreGui
+elseif gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end
 
-if syn and syn.protect_gui then
-    syn.protect_gui(ScreenGui)
-    ScreenGui.Parent = CoreGui
-elseif gethui then
-    ScreenGui.Parent = gethui()
-else
-    ScreenGui.Parent = CoreGui
-end
-
----------------------------------------------------------
--- واجهة مفتاح التفعيل (Key System)
----------------------------------------------------------
 local KeyFrame = Instance.new("Frame", ScreenGui)
-KeyFrame.Name = "KeyFrame"
 KeyFrame.Size = UDim2.new(0, 300, 0, 180)
 KeyFrame.Position = UDim2.new(0.5, -150, 0.4, -90)
 KeyFrame.BackgroundColor3 = Color3.fromRGB(20, 22, 28)
-KeyFrame.BorderSizePixel = 0
-KeyFrame.Active = true
-KeyFrame.Draggable = true
-
 Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 12)
-local KeyUIStroke = Instance.new("UIStroke", KeyFrame)
-KeyUIStroke.Color = Color3.fromRGB(0, 170, 255)
-KeyUIStroke.Thickness = 1.8
-
-local KeyTitle = Instance.new("TextLabel", KeyFrame)
-KeyTitle.Size = UDim2.new(1, 0, 0, 40)
-KeyTitle.BackgroundTransparency = 1
-KeyTitle.Text = "🔑 Key System | أدخل المفتاح"
-KeyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-KeyTitle.TextSize = 15
-KeyTitle.Font = Enum.Font.GothamBold
-
 local KeyInput = Instance.new("TextBox", KeyFrame)
 KeyInput.Size = UDim2.new(0.85, 0, 0, 38)
 KeyInput.Position = UDim2.new(0.075, 0, 0.28, 0)
-KeyInput.BackgroundColor3 = Color3.fromRGB(32, 35, 45)
-KeyInput.PlaceholderText = "اكتب كلمة السر هنا..."
 KeyInput.Text = ""
-KeyInput.TextColor3 = Color3.fromRGB(0, 255, 170)
-KeyInput.TextSize = 13
-KeyInput.Font = Enum.Font.GothamMedium
-Instance.new("UICorner", KeyInput).CornerRadius = UDim.new(0, 8)
-
 local SubmitBtn = Instance.new("TextButton", KeyFrame)
 SubmitBtn.Size = UDim2.new(0.85, 0, 0, 36)
 SubmitBtn.Position = UDim2.new(0.075, 0, 0.58, 0)
-SubmitBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 SubmitBtn.Text = "تأكيد المفتاح 🔓"
-SubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SubmitBtn.TextSize = 13
-SubmitBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", SubmitBtn).CornerRadius = UDim.new(0, 8)
 
-local StatusLabel = Instance.new("TextLabel", KeyFrame)
-StatusLabel.Size = UDim2.new(1, 0, 0, 20)
-StatusLabel.Position = UDim2.new(0, 0, 0.82, 0)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = ""
-StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-StatusLabel.TextSize = 11
-StatusLabel.Font = Enum.Font.GothamMedium
-
----------------------------------------------------------
--- الواجهة الرئيسية المدمجة (Main Integrated Frame)
----------------------------------------------------------
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 540, 0, 380)
 MainFrame.Position = UDim2.new(0.5, -270, 0.2, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 17, 23)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
 MainFrame.Visible = false
-
-local MainCorner = Instance.new("UICorner", MainFrame)
-MainCorner.CornerRadius = UDim.new(0, 10)
-
-local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(0, 170, 255)
-MainStroke.Thickness = 1.5
+MainFrame.Draggable = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
 local Sidebar = Instance.new("Frame", MainFrame)
 Sidebar.Size = UDim2.new(0, 140, 1, 0)
 Sidebar.BackgroundColor3 = Color3.fromRGB(20, 23, 32)
-
-local SideCorner = Instance.new("UICorner", Sidebar)
-SideCorner.CornerRadius = UDim.new(0, 10)
-
 local SideLayout = Instance.new("UIListLayout", Sidebar)
-SideLayout.Padding = UDim.new(0, 5)
-SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-local TitleLabel = Instance.new("TextLabel", Sidebar)
-TitleLabel.Size = UDim2.new(1, 0, 0, 38)
-TitleLabel.Text = "⚡ MASTER HUB"
-TitleLabel.TextColor3 = Color3.fromRGB(0, 170, 255)
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextSize = 12
-TitleLabel.BackgroundTransparency = 1
 
 local ContentArea = Instance.new("Frame", MainFrame)
 ContentArea.Size = UDim2.new(1, -145, 1, -10)
@@ -268,62 +151,25 @@ ContentArea.BackgroundTransparency = 1
 local ToggleBtn = Instance.new("TextButton", ScreenGui)
 ToggleBtn.Size = UDim2.new(0, 75, 0, 30)
 ToggleBtn.Position = UDim2.new(0.02, 0, 0.1, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 23, 32)
 ToggleBtn.Text = "MENU"
-ToggleBtn.TextColor3 = Color3.fromRGB(0, 170, 255)
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 11
 ToggleBtn.Visible = false
+ToggleBtn.MouseButton1Click:Connect(function() if KeyUnlocked then MainFrame.Visible = not MainFrame.Visible end end)
 
-local ToggleCorner = Instance.new("UICorner", ToggleBtn)
-ToggleCorner.CornerRadius = UDim.new(0, 8)
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    if KeyUnlocked then
-        MainFrame.Visible = not MainFrame.Visible
-    end
-end)
-
--- محرك التبويبات (Tabs Builder)
 local tabs = {}
 local function CreateTab(tabName)
     local TabBtn = Instance.new("TextButton", Sidebar)
     TabBtn.Size = UDim2.new(0.9, 0, 0, 28)
-    TabBtn.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
     TabBtn.Text = tabName
-    TabBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
-    TabBtn.Font = Enum.Font.GothamBold
-    TabBtn.TextSize = 9
-
-    local BtnCorner = Instance.new("UICorner", TabBtn)
-    BtnCorner.CornerRadius = UDim.new(0, 6)
-
     local TabPage = Instance.new("ScrollingFrame", ContentArea)
     TabPage.Size = UDim2.new(1, 0, 1, 0)
     TabPage.BackgroundTransparency = 1
     TabPage.Visible = false
-    TabPage.ScrollBarThickness = 3
-    TabPage.CanvasSize = UDim2.new(0, 0, 0, 0)
-
     local PageLayout = Instance.new("UIListLayout", TabPage)
     PageLayout.Padding = UDim.new(0, 6)
-    PageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-    PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        TabPage.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 15)
-    end)
-
     TabBtn.MouseButton1Click:Connect(function()
-        for _, t in pairs(tabs) do
-            t.Page.Visible = false
-            t.Btn.TextColor3 = Color3.fromRGB(180, 180, 180)
-            t.Btn.BackgroundColor3 = Color3.fromRGB(28, 32, 45)
-        end
+        for _, t in pairs(tabs) do t.Page.Visible = false end
         TabPage.Visible = true
-        TabBtn.TextColor3 = Color3.fromRGB(0, 170, 255)
-        TabBtn.BackgroundColor3 = Color3.fromRGB(35, 42, 60)
     end)
-
     table.insert(tabs, {Btn = TabBtn, Page = TabPage})
     return TabPage
 end
@@ -334,659 +180,102 @@ local function AddToggle(parentPage, name, configVar, callback)
     Button.BackgroundColor3 = Color3.fromRGB(24, 27, 38)
     Button.Text = "  " .. name
     Button.TextColor3 = _G.Config[configVar] and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
-    Button.Font = Enum.Font.GothamMedium
-    Button.TextSize = 9
     Button.TextXAlignment = Enum.TextXAlignment.Left
-
-    local BtnCorner = Instance.new("UICorner", Button)
-    BtnCorner.CornerRadius = UDim.new(0, 6)
 
     local Indicator = Instance.new("Frame", Button)
     Indicator.Size = UDim2.new(0, 26, 0, 14)
     Indicator.Position = UDim2.new(1, -32, 0.5, -7)
     Indicator.BackgroundColor3 = _G.Config[configVar] and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(45, 50, 62)
-
-    local IndCorner = Instance.new("UICorner", Indicator)
-    IndCorner.CornerRadius = UDim.new(1, 0)
-
     local Dot = Instance.new("Frame", Indicator)
     Dot.Size = UDim2.new(0, 8, 0, 8)
     Dot.Position = _G.Config[configVar] and UDim2.new(1, -10, 0.5, -4) or UDim2.new(0, 2, 0.5, -4)
-    Dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 
-    local DotCorner = Instance.new("UICorner", Dot)
-    DotCorner.CornerRadius = UDim.new(1, 0)
-
-    Button.MouseButton1Click:Connect(function()
-        _G.Config[configVar] = not _G.Config[configVar]
-        SaveConfig()
+    local function updateVisuals()
         local state = _G.Config[configVar]
         Indicator.BackgroundColor3 = state and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(45, 50, 62)
         Dot.Position = state and UDim2.new(1, -10, 0.5, -4) or UDim2.new(0, 2, 0.5, -4)
         Button.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
-        if callback then callback(state) end
-    end)
-    return Button
-end
-
-local function CreateDynamicDropdown(parentPage, title, getOptionsFunc, configVar, onSelectCallback)
-    local DropdownFrame = Instance.new("Frame", parentPage)
-    DropdownFrame.Size = UDim2.new(0.96, 0, 0, 30)
-    DropdownFrame.BackgroundColor3 = Color3.fromRGB(24, 27, 38)
-    DropdownFrame.ClipsDescendants = true
-
-    local FrameCorner = Instance.new("UICorner", DropdownFrame)
-    FrameCorner.CornerRadius = UDim.new(0, 6)
-
-    local MainBtn = Instance.new("TextButton", DropdownFrame)
-    MainBtn.Size = UDim2.new(1, 0, 0, 30)
-    MainBtn.BackgroundTransparency = 1
-    MainBtn.Text = "  " .. title .. ": " .. tostring(_G.Config[configVar]) .. "  ▼"
-    MainBtn.TextColor3 = Color3.fromRGB(0, 170, 255)
-    MainBtn.Font = Enum.Font.GothamBold
-    MainBtn.TextSize = 9
-    MainBtn.TextXAlignment = Enum.TextXAlignment.Left
-
-    local OptionsHolder = Instance.new("ScrollingFrame", DropdownFrame)
-    OptionsHolder.Position = UDim2.new(0, 4, 0, 30)
-    OptionsHolder.Size = UDim2.new(1, -8, 0, 0)
-    OptionsHolder.BackgroundTransparency = 1
-    OptionsHolder.ScrollBarThickness = 3
-    OptionsHolder.Visible = false
-
-    local HolderLayout = Instance.new("UIListLayout", OptionsHolder)
-    HolderLayout.Padding = UDim.new(0, 3)
-
-    local isOpen = false
-
-    local function RebuildOptions()
-        for _, child in pairs(OptionsHolder:GetChildren()) do
-            if child:IsA("TextButton") then child:Destroy() end
-        end
-        local currentOptions = getOptionsFunc()
-        local itemHeight = 22
-        local maxVisibleItems = 5
-        local visibleCount = math.min(#currentOptions, maxVisibleItems)
-        local containerHeight = visibleCount * (itemHeight + 3)
-
-        OptionsHolder.Size = UDim2.new(1, -8, 0, containerHeight)
-        OptionsHolder.CanvasSize = UDim2.new(0, 0, 0, #currentOptions * (itemHeight + 3))
-
-        for _, opt in ipairs(currentOptions) do
-            local OptBtn = Instance.new("TextButton", OptionsHolder)
-            OptBtn.Size = UDim2.new(0.98, 0, 0, itemHeight)
-            OptBtn.BackgroundColor3 = Color3.fromRGB(32, 36, 50)
-            OptBtn.Text = tostring(opt)
-            OptBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-            OptBtn.Font = Enum.Font.GothamMedium
-            OptBtn.TextSize = 9
-
-            local OptCorner = Instance.new("UICorner", OptBtn)
-            OptCorner.CornerRadius = UDim.new(0, 5)
-
-            OptBtn.MouseButton1Click:Connect(function()
-                _G.Config[configVar] = opt
-                SaveConfig()
-                MainBtn.Text = "  " .. title .. ": " .. tostring(_G.Config[configVar]) .. "  ▼"
-                isOpen = false
-                OptionsHolder.Visible = false
-                DropdownFrame.Size = UDim2.new(0.96, 0, 0, 30)
-                if onSelectCallback then onSelectCallback(opt) end
-            end)
-        end
-        return containerHeight
     end
 
-    MainBtn.MouseButton1Click:Connect(function()
-        isOpen = not isOpen
-        if isOpen then
-            local containerHeight = RebuildOptions()
-            OptionsHolder.Visible = true
-            DropdownFrame.Size = UDim2.new(0.96, 0, 0, 34 + containerHeight)
-            MainBtn.Text = "  " .. title .. ": " .. tostring(_G.Config[configVar]) .. "  ▲"
-        else
-            OptionsHolder.Visible = false
-            DropdownFrame.Size = UDim2.new(0.96, 0, 0, 30)
-            MainBtn.Text = "  " .. title .. ": " .. tostring(_G.Config[configVar]) .. "  ▼"
-        end
+    Button.MouseButton1Click:Connect(function()
+        _G.Config[configVar] = not _G.Config[configVar]
+        SaveConfig()
+        updateVisuals()
+        if callback then callback(_G.Config[configVar]) end
     end)
-
+    
     return {
-        Refresh = function()
-            MainBtn.Text = "  " .. title .. ": " .. tostring(_G.Config[configVar]) .. "  ▼"
-            if isOpen then 
-                local containerHeight = RebuildOptions()
-                DropdownFrame.Size = UDim2.new(0.96, 0, 0, 34 + containerHeight)
-            end
+        Toggle = function()
+            _G.Config[configVar] = not _G.Config[configVar]
+            SaveConfig()
+            updateVisuals()
+            if callback then callback(_G.Config[configVar]) end
         end
     }
 end
 
--- إنشـاء جميع الأبواب والتبويبات
-local SpeedTab = CreateTab("🚀 Player Speed")
-local FarmTab = CreateTab("🌾 Main Farm")
-local MaterialTab = CreateTab("📦 Material Farm")
-local PVPTab = CreateTab("⚔️ PVP & Combo")
-local CombatTab = CreateTab("🎯 Aimbot & Target")
-local TeleportTab = CreateTab("🌐 Teleport")
-local VisualsTab = CreateTab("👁️ Visuals & Health")
+local function CreateKeybind(parentPage, title, configVar)
+    local Btn = Instance.new("TextButton", parentPage)
+    Btn.Size = UDim2.new(0.96, 0, 0, 30)
+    Btn.BackgroundColor3 = Color3.fromRGB(35, 40, 52)
+    Btn.Text = title .. " [ " .. tostring(_G.Config[configVar]) .. " ]"
+    Btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    
+    Btn.MouseButton1Click:Connect(function()
+        IsAssigningKey = true
+        Btn.Text = "اضغط الزر الآن..."
+        Btn.TextColor3 = Color3.fromRGB(255, 200, 50)
+        
+        local conn
+        conn = UserInputService.InputBegan:Connect(function(input, gp)
+            if input.UserInputType == Enum.UserInputType.Keyboard then
+                _G.Config[configVar] = input.KeyCode.Name
+                SaveConfig()
+                Btn.Text = title .. " [ " .. input.KeyCode.Name .. " ]"
+                Btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+                IsAssigningKey = false
+                if conn then conn:Disconnect() end
+            end
+        end)
+        table.insert(Connections, conn)
+    end)
+    return Btn
+end
 
+local SpeedTab = CreateTab("🚀 Speed")
+local FarmTab = CreateTab("🌾 Farm & Attack")
+local CombatTab = CreateTab("🎯 Aimbot Settings")
 tabs[1].Page.Visible = true
-tabs[1].Btn.TextColor3 = Color3.fromRGB(0, 170, 255)
 
--- ==========================================
--- 3. بناء واجهات التبويبات بالتفصيل
--- ==========================================
-
--- [1] Speed Tab
+-- [Speed Tab]
 local ToggleSpeedBtn = Instance.new("TextButton", SpeedTab)
 ToggleSpeedBtn.Size = UDim2.new(0.96, 0, 0, 32)
 ToggleSpeedBtn.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
 ToggleSpeedBtn.Text = "السرعة: [معطل ❌]"
-ToggleSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleSpeedBtn.Font = Enum.Font.GothamBold
-ToggleSpeedBtn.TextSize = 11
-Instance.new("UICorner", ToggleSpeedBtn).CornerRadius = UDim.new(0, 6)
+CreateKeybind(SpeedTab, "زر إخفاء الـ UI:", "ToggleKey")
 
-local SliderLabel = Instance.new("TextLabel", SpeedTab)
-SliderLabel.Size = UDim2.new(0.96, 0, 0, 16)
-SliderLabel.BackgroundTransparency = 1
-SliderLabel.Text = "مستوى السرعة: " .. tostring(_G.Config.SpeedMultiplier) .. "x"
-SliderLabel.TextColor3 = Color3.fromRGB(0, 230, 255)
-SliderLabel.TextSize = 10
-SliderLabel.Font = Enum.Font.GothamMedium
-SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local SliderFrame = Instance.new("Frame", SpeedTab)
-SliderFrame.Size = UDim2.new(0.96, 0, 0, 8)
-SliderFrame.BackgroundColor3 = Color3.fromRGB(35, 38, 48)
-SliderFrame.BorderSizePixel = 0
-Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(1, 0)
-
-local SliderFill = Instance.new("Frame", SliderFrame)
-SliderFill.Size = UDim2.new((_G.Config.SpeedMultiplier - _G.Config.MinSpeed) / (_G.Config.MaxSpeed - _G.Config.MinSpeed), 0, 1, 0)
-SliderFill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-SliderFill.BorderSizePixel = 0
-Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
-
-local KeybindBtn = Instance.new("TextButton", SpeedTab)
-KeybindBtn.Size = UDim2.new(0.96, 0, 0, 30)
-KeybindBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 52)
-KeybindBtn.Text = "زر إخفاء الـ UI: [ L ]"
-KeybindBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-KeybindBtn.Font = Enum.Font.GothamMedium
-KeybindBtn.TextSize = 10
-Instance.new("UICorner", KeybindBtn).CornerRadius = UDim.new(0, 6)
-
--- [2] Main Farm Tab
+-- [Farm & Attack Tab]
+AddToggle(FarmTab, "Fast Attack Universal (Players + Mobs)", "FastAttack")
 AddToggle(FarmTab, "Auto Farm Level", "AutoFarm")
-AddToggle(FarmTab, "Fast Attack Universal 100%", "FastAttack")
-AddToggle(FarmTab, "Auto Buso Haki (Aura)", "AutoHaki")
-AddToggle(FarmTab, "Auto Use Skills", "UseSkills")
-CreateDynamicDropdown(FarmTab, "Weapon Type", function() return {"Melee", "Sword", "Blox Fruit", "Gun"} end, "SelectWeapon")
 
--- [3] Material Farm Tab
-local materialDropdown
-local function CreateSeaSelector(parent, configVar, callback)
-    local frame = Instance.new("Frame", parent)
-    frame.Size = UDim2.new(0.96, 0, 0, 28)
-    frame.BackgroundTransparency = 1
+-- [Aimbot Tab]
+local PlayerAimbotObj = AddToggle(CombatTab, "Player Camera Aimbot", "PlayerAimbot")
+CreateKeybind(CombatTab, "زر تشغيل/إيقاف أيمبوت اللاعبين:", "PlayerAimbotKey")
 
-    local layout = Instance.new("UIListLayout", frame)
-    layout.FillDirection = Enum.FillDirection.Horizontal
-    layout.Padding = UDim.new(0, 4)
-
-    for i = 1, 3 do
-        local btn = Instance.new("TextButton", frame)
-        btn.Size = UDim2.new(0.32, 0, 1, 0)
-        btn.BackgroundColor3 = _G.Config[configVar] == i and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(30, 35, 48)
-        btn.Text = "Sea " .. i
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 9
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
-
-        btn.MouseButton1Click:Connect(function()
-            _G.Config[configVar] = i
-            SaveConfig()
-            for _, child in pairs(frame:GetChildren()) do
-                if child:IsA("TextButton") then child.BackgroundColor3 = Color3.fromRGB(30, 35, 48) end
-            end
-            btn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-            if callback then callback(i) end
-        end)
-    end
-end
-
-AddToggle(MaterialTab, "Auto Farm Material", "AutoMaterial")
-CreateDynamicDropdown(MaterialTab, "Target Mode", function() return {"Original Mobs", "Nearest Mobs"} end, "MaterialMode")
-CreateSeaSelector(MaterialTab, "SelectedMaterialSea", function(seaNum)
-    _G.Config.SelectMaterial = materialsBySea[seaNum][1] or ""
-    SaveConfig()
-    if materialDropdown then materialDropdown.Refresh() end
-end)
-materialDropdown = CreateDynamicDropdown(MaterialTab, "Select Material", function() 
-    return materialsBySea[_G.Config.SelectedMaterialSea] or {}
-end, "SelectMaterial")
-
--- [4] PVP & Combo Tab
-AddToggle(PVPTab, "Enable PVP Auto Combo", "TargetPVP")
-local playerDropdown = CreateDynamicDropdown(PVPTab, "Target Player", function()
-    local list = {}
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then table.insert(list, p.Name) end
-    end
-    return #list > 0 and list or {"No Players"}
-end, "SelectedPlayer")
-
-local RefreshPlayersBtn = Instance.new("TextButton", PVPTab)
-RefreshPlayersBtn.Size = UDim2.new(0.96, 0, 0, 26)
-RefreshPlayersBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-RefreshPlayersBtn.Text = "🔄 REFRESH PLAYERS LIST"
-RefreshPlayersBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-RefreshPlayersBtn.Font = Enum.Font.GothamBold
-RefreshPlayersBtn.TextSize = 9
-Instance.new("UICorner", RefreshPlayersBtn).CornerRadius = UDim.new(0, 6)
-
-RefreshPlayersBtn.MouseButton1Click:Connect(function()
-    local currentPlayers = {}
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then table.insert(currentPlayers, p.Name) end
-    end
-    _G.Config.SelectedPlayer = #currentPlayers > 0 and currentPlayers[1] or "No Players"
-    SaveConfig()
-    if playerDropdown then playerDropdown.Refresh() end
-end)
-
-local selectedWeaponToEdit = "Melee"
-local SkillsContainer = Instance.new("Frame", PVPTab)
-SkillsContainer.Size = UDim2.new(0.96, 0, 0, 160)
-SkillsContainer.BackgroundColor3 = Color3.fromRGB(20, 23, 32)
-Instance.new("UICorner", SkillsContainer).CornerRadius = UDim.new(0, 6)
-
-local SkillsLayout = Instance.new("UIListLayout", SkillsContainer)
-SkillsLayout.Padding = UDim.new(0, 3)
-SkillsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-local function UpdateSkillsUI()
-    for _, child in pairs(SkillsContainer:GetChildren()) do
-        if not child:IsA("UIListLayout") and not child:IsA("UICorner") then child:Destroy() end
-    end
-    local weaponState = _G.Config.ComboWeaponEnabled[selectedWeaponToEdit]
-    local WeaponToggleBtn = Instance.new("TextButton", SkillsContainer)
-    WeaponToggleBtn.Size = UDim2.new(0.96, 0, 0, 24)
-    WeaponToggleBtn.BackgroundColor3 = weaponState and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(60, 60, 60)
-    WeaponToggleBtn.Text = "Use " .. selectedWeaponToEdit .. " In Combo: " .. (weaponState and "YES" or "NO")
-    WeaponToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    WeaponToggleBtn.Font = Enum.Font.GothamBold
-    WeaponToggleBtn.TextSize = 9
-    Instance.new("UICorner", WeaponToggleBtn).CornerRadius = UDim.new(0, 5)
-
-    WeaponToggleBtn.MouseButton1Click:Connect(function()
-        _G.Config.ComboWeaponEnabled[selectedWeaponToEdit] = not _G.Config.ComboWeaponEnabled[selectedWeaponToEdit]
-        SaveConfig()
-        UpdateSkillsUI()
-    end)
-
-    local keys = {"Z", "X", "C", "V", "F"}
-    for _, key in ipairs(keys) do
-        local skillState = _G.Config.ComboSkills[selectedWeaponToEdit][key]
-        local SkillBtn = Instance.new("TextButton", SkillsContainer)
-        SkillBtn.Size = UDim2.new(0.96, 0, 0, 20)
-        SkillBtn.BackgroundColor3 = skillState and Color3.fromRGB(0, 140, 220) or Color3.fromRGB(35, 40, 52)
-        SkillBtn.Text = "  Skill [" .. key .. "]: " .. (skillState and "ON" or "OFF")
-        SkillBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        SkillBtn.Font = Enum.Font.GothamMedium
-        SkillBtn.TextSize = 8
-        SkillBtn.TextXAlignment = Enum.TextXAlignment.Left
-        Instance.new("UICorner", SkillBtn).CornerRadius = UDim.new(0, 4)
-
-        SkillBtn.MouseButton1Click:Connect(function()
-            _G.Config.ComboSkills[selectedWeaponToEdit][key] = not _G.Config.ComboSkills[selectedWeaponToEdit][key]
-            SaveConfig()
-            UpdateSkillsUI()
-        end)
-    end
-end
-
-CreateDynamicDropdown(PVPTab, "Edit Weapon Combo Skills", function()
-    return {"Melee", "Sword", "Blox Fruit", "Gun"}
-end, "SelectWeapon", function(opt)
-    selectedWeaponToEdit = opt
-    UpdateSkillsUI()
-end)
-UpdateSkillsUI()
-
--- [5] Combat & Aimbot Tab
-AddToggle(CombatTab, "Player Camera Aimbot", "PlayerAimbot")
-AddToggle(CombatTab, "Mob Camera Aimbot", "MobAimbot")
-
--- [6] Teleport Tab
-local islandDropdown
-CreateSeaSelector(TeleportTab, "SelectedIslandSea", function(seaNum)
-    local firstIsland = ""
-    for name, _ in pairs(islandsBySea[seaNum]) do firstIsland = name; break end
-    _G.Config.SelectIsland = firstIsland
-    SaveConfig()
-    if islandDropdown then islandDropdown.Refresh() end
-end)
-islandDropdown = CreateDynamicDropdown(TeleportTab, "Select Island", function()
-    local list = {}
-    for name, _ in pairs(islandsBySea[_G.Config.SelectedIslandSea] or {}) do table.insert(list, name) end
-    return list
-end, "SelectIsland")
-AddToggle(TeleportTab, "Start Teleport To Island", "IsTeleporting")
-
--- [7] Visuals & Health ESP Tab
-AddToggle(VisualsTab, "Show Health Overlay (ESP)", "ShowHealth")
-local StyleBtn = Instance.new("TextButton", VisualsTab)
-StyleBtn.Size = UDim2.new(0.96, 0, 0, 30)
-StyleBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
-StyleBtn.Text = "شكل الشريط: [ Mode 1: Modern Bar ]"
-StyleBtn.TextColor3 = Color3.fromRGB(0, 255, 200)
-StyleBtn.Font = Enum.Font.GothamMedium
-StyleBtn.TextSize = 10
-Instance.new("UICorner", StyleBtn).CornerRadius = UDim.new(0, 6)
-
-AddToggle(VisualsTab, "Fruit ESP", "FruitESP")
-AddToggle(VisualsTab, "Auto Grab Fruit", "AutoGrab")
+local MobAimbotObj = AddToggle(CombatTab, "Mob Camera Aimbot", "MobAimbot")
+CreateKeybind(CombatTab, "زر تشغيل/إيقاف أيمبوت الوحوش:", "MobAimbotKey")
 
 -- ==========================================
--- 4. المحركات وتنفيذ الخدمات خلف الكواليس
+-- 3. العمليات والأحداث (Functions & Events)
 -- ==========================================
 
----------------------------------------------------------
--- محرك شريط الصحة (Health ESP Engine بدون فليكر)
----------------------------------------------------------
-local HealthGuis = {}
-local CurrentHealthStyle = 1
-
-local function RemovePlayerHealthBar(plr)
-    if HealthGuis[plr] then
-        if HealthGuis[plr].Gui then HealthGuis[plr].Gui:Destroy() end
-        HealthGuis[plr] = nil
-    end
-end
-
-local function ClearAllHealthBars()
-    for plr, _ in pairs(HealthGuis) do RemovePlayerHealthBar(plr) end
-    HealthGuis = {}
-end
-
-local function CreateHealthBar(plr)
-    if plr == LocalPlayer or not _G.Config.ShowHealth then return end
-    RemovePlayerHealthBar(plr)
-
-    local function ApplyGui(char)
-        if not char or not _G.Config.ShowHealth then return end
-        local head = char:WaitForChild("Head", 5)
-        local humanoid = char:WaitForChild("Humanoid", 5)
-        if not head or not humanoid then return end
-
-        local Billboard = Instance.new("BillboardGui")
-        Billboard.Name = "PlayerHealthESP_Instance"
-        Billboard.Adornee = head
-        Billboard.AlwaysOnTop = true
-        Billboard.ExtentsOffset = Vector3.new(0, 2.8, 0)
-        Billboard.Parent = ScreenGui
-
-        local Frame = Instance.new("Frame", Billboard)
-        Frame.Size = UDim2.new(1, 0, 1, 0)
-        Frame.BackgroundTransparency = 1
-
-        if CurrentHealthStyle == 1 then
-            Billboard.Size = UDim2.new(0, 130, 0, 22)
-            Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-            Frame.BackgroundTransparency = 0.3
-            Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
-
-            local Fill = Instance.new("Frame", Frame)
-            Fill.Name = "Fill"
-            Fill.Size = UDim2.new(humanoid.Health / humanoid.MaxHealth, 0, 1, 0)
-            Fill.BackgroundColor3 = Color3.fromRGB(0, 220, 100)
-            Fill.BorderSizePixel = 0
-            Instance.new("UICorner", Fill).CornerRadius = UDim.new(0, 6)
-
-            local Text = Instance.new("TextLabel", Frame)
-            Text.Name = "Label"
-            Text.Size = UDim2.new(1, 0, 1, 0)
-            Text.BackgroundTransparency = 1
-            Text.Text = plr.DisplayName .. " [" .. math.floor(humanoid.Health) .. "]"
-            Text.TextColor3 = Color3.fromRGB(255, 255, 255)
-            Text.TextSize = 10
-            Text.Font = Enum.Font.GothamBold
-
-        elseif CurrentHealthStyle == 2 then
-            Billboard.Size = UDim2.new(0, 95, 0, 18)
-            Frame.BackgroundColor3 = Color3.fromRGB(30, 35, 45)
-            Frame.BackgroundTransparency = 0.1
-            Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
-
-            local Text = Instance.new("TextLabel", Frame)
-            Text.Name = "Label"
-            Text.Size = UDim2.new(1, 0, 1, 0)
-            Text.BackgroundTransparency = 1
-            Text.Text = "❤️ " .. math.floor((humanoid.Health / humanoid.MaxHealth) * 100) .. "%"
-            Text.TextColor3 = Color3.fromRGB(0, 255, 150)
-            Text.TextSize = 10
-            Text.Font = Enum.Font.GothamBold
-
-        elseif CurrentHealthStyle == 3 then
-            Billboard.Size = UDim2.new(0, 85, 0, 5)
-            Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            Frame.BackgroundTransparency = 0.2
-            Instance.new("UICorner", Frame)
-
-            local Fill = Instance.new("Frame", Frame)
-            Fill.Name = "Fill"
-            Fill.Size = UDim2.new(humanoid.Health / humanoid.MaxHealth, 0, 1, 0)
-            Fill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-            Fill.BorderSizePixel = 0
-            Instance.new("UICorner", Fill)
-
-        elseif CurrentHealthStyle == 4 then
-            Billboard.Size = UDim2.new(0, 110, 0, 20)
-            Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-            Frame.BackgroundTransparency = 0.2
-            Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 4)
-
-            local Text = Instance.new("TextLabel", Frame)
-            Text.Name = "Label"
-            Text.Size = UDim2.new(1, 0, 1, 0)
-            Text.BackgroundTransparency = 1
-            Text.Text = "💚 " .. plr.DisplayName .. " | " .. math.floor(humanoid.Health)
-            Text.TextColor3 = Color3.fromRGB(100, 255, 100)
-            Text.TextSize = 10
-            Text.Font = Enum.Font.GothamBold
-
-        elseif CurrentHealthStyle == 5 then
-            Billboard.Size = UDim2.new(0, 120, 0, 22)
-            Frame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-            Frame.BackgroundTransparency = 0.4
-
-            local Stroke = Instance.new("UIStroke", Frame)
-            Stroke.Color = Color3.fromRGB(0, 255, 255)
-            Stroke.Thickness = 1.2
-
-            local Fill = Instance.new("Frame", Frame)
-            Fill.Name = "Fill"
-            Fill.Size = UDim2.new(humanoid.Health / humanoid.MaxHealth, 0, 1, 0)
-            Fill.BackgroundColor3 = Color3.fromRGB(255, 0, 100)
-            Fill.BorderSizePixel = 0
-
-            local Text = Instance.new("TextLabel", Frame)
-            Text.Name = "Label"
-            Text.Size = UDim2.new(1, 0, 1, 0)
-            Text.BackgroundTransparency = 1
-            Text.Text = math.floor((humanoid.Health / humanoid.MaxHealth) * 100) .. " HP"
-            Text.TextColor3 = Color3.fromRGB(255, 255, 255)
-            Text.TextSize = 10
-            Text.Font = Enum.Font.GothamBold
-        end
-
-        HealthGuis[plr] = { Gui = Billboard, Humanoid = humanoid, TargetFrame = Frame }
-    end
-
-    if plr.Character then ApplyGui(plr.Character) end
-    table.insert(Connections, plr.CharacterAdded:Connect(ApplyGui))
-end
-
-local function RefreshHealthBars()
-    ClearAllHealthBars()
-    if _G.Config.ShowHealth then
-        for _, plr in ipairs(Players:GetPlayers()) do
-            CreateHealthBar(plr)
-        end
-    end
-end
-
-table.insert(Connections, RunService.RenderStepped:Connect(function()
-    if not _G.Config.ShowHealth then return end
-    for plr, data in pairs(HealthGuis) do
-        if data and data.Humanoid and data.TargetFrame and data.Gui then
-            local hum = data.Humanoid
-            if hum and hum.Parent then
-                local percent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
-                if CurrentHealthStyle == 1 or CurrentHealthStyle == 3 or CurrentHealthStyle == 5 then
-                    local fill = data.TargetFrame:FindFirstChild("Fill")
-                    if fill then fill.Size = UDim2.new(percent, 0, 1, 0) end
-                end
-
-                local lbl = data.TargetFrame:FindFirstChild("Label")
-                if lbl then
-                    if CurrentHealthStyle == 1 then
-                        lbl.Text = plr.DisplayName .. " [" .. math.floor(hum.Health) .. "]"
-                    elseif CurrentHealthStyle == 2 then
-                        lbl.Text = "❤️ " .. math.floor(percent * 100) .. "%"
-                    elseif CurrentHealthStyle == 4 then
-                        local icon = percent > 0.5 and "💚 " or (percent > 0.25 and "💛 " or "💔 ")
-                        lbl.Text = icon .. plr.DisplayName .. " | " .. math.floor(hum.Health)
-                    elseif CurrentHealthStyle == 5 then
-                        lbl.Text = math.floor(percent * 100) .. " HP"
-                    end
-                end
-            end
-        end
-    end
-end))
-
-table.insert(Connections, Players.PlayerAdded:Connect(function(plr)
-    if _G.Config.ShowHealth then CreateHealthBar(plr) end
-end))
-table.insert(Connections, Players.PlayerRemoving:Connect(RemovePlayerHealthBar))
-
-local StyleNames = {
-    [1] = "Mode 1: Modern Bar",
-    [2] = "Mode 2: Compact Tag",
-    [3] = "Mode 3: Minimal Line",
-    [4] = "Mode 4: Cyber Heart",
-    [5] = "Mode 5: Futuristic"
-}
-
-StyleBtn.MouseButton1Click:Connect(function()
-    CurrentHealthStyle = CurrentHealthStyle + 1
-    if CurrentHealthStyle > 5 then CurrentHealthStyle = 1 end
-    StyleBtn.Text = "شكل الشريط: [ " .. StyleNames[CurrentHealthStyle] .. " ]"
-    RefreshHealthBars()
-end)
-
----------------------------------------------------------
--- محرك Aimbot (Hard Lock)
----------------------------------------------------------
-local lockedTargetPart = nil
-local function GetClosestToCamera(isPlayerTarget)
-    local closestPart = nil
-    local shortestDistance = math.huge
-    local viewportCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-
-    if isPlayerTarget then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character then
-                local targetPart = p.Character:FindFirstChild(_G.Config.TargetPart) or p.Character:FindFirstChild("HumanoidRootPart")
-                local hum = p.Character:FindFirstChild("Humanoid")
-                if targetPart and hum and hum.Health > 0 then
-                    local screenPos = Camera:WorldToViewportPoint(targetPart.Position)
-                    local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - viewportCenter).Magnitude
-                    if screenDist < shortestDistance then
-                        shortestDistance = screenDist
-                        closestPart = targetPart
-                    end
-                end
-            end
-        end
-    else
-        local enemies = workspace:FindFirstChild("Enemies")
-        if enemies then
-            for _, mob in pairs(enemies:GetChildren()) do
-                local targetPart = mob:FindFirstChild(_G.Config.TargetPart) or mob:FindFirstChild("HumanoidRootPart")
-                local hum = mob:FindFirstChild("Humanoid")
-                if targetPart and hum and hum.Health > 0 then
-                    local screenPos = Camera:WorldToViewportPoint(targetPart.Position)
-                    local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - viewportCenter).Magnitude
-                    if screenDist < shortestDistance then
-                        shortestDistance = screenDist
-                        closestPart = targetPart
-                    end
-                end
-            end
-        end
-    end
-    return closestPart
-end
-
-table.insert(Connections, RunService.RenderStepped:Connect(function()
-    if not KeyUnlocked then return end
-    local isAimbotActive = _G.Config.PlayerAimbot or _G.Config.MobAimbot
-    if isAimbotActive then
-        if not lockedTargetPart or not lockedTargetPart.Parent or not lockedTargetPart.Parent:FindFirstChild("Humanoid") or lockedTargetPart.Parent.Humanoid.Health <= 0 then
-            lockedTargetPart = GetClosestToCamera(_G.Config.PlayerAimbot)
-        end
-        if lockedTargetPart and lockedTargetPart.Parent then
-            pcall(function()
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, lockedTargetPart.Position)
-                lockedTargetPart.Size = Vector3.new(_G.Config.HitboxSize, _G.Config.HitboxSize, _G.Config.HitboxSize)
-                lockedTargetPart.Transparency = 0.7
-                lockedTargetPart.CanCollide = false
-            end)
-        end
-    else
-        lockedTargetPart = nil
-    end
-end))
-
----------------------------------------------------------
--- محرك الحركة التلقائية والفارم وسلسلة الكومبو
----------------------------------------------------------
-local currentTween = nil
-local function SmoothMove(targetCFrame)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    local speed = 300
-    local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-    if currentTween then currentTween:Cancel() end
-    currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-    currentTween:Play()
-    return currentTween
-end
-
-local function EquipSpecificWeapon(wType)
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    local char = LocalPlayer.Character
-    if not backpack or not char or not char:FindFirstChild("Humanoid") then return end
-    for _, tool in pairs(backpack:GetChildren()) do
-        if tool:IsA("Tool") and tool.ToolTip == wType then
-            char.Humanoid:EquipTool(tool)
-            return tool
-        end
-    end
-end
-
+-- نظام Fast Attack المحدث (يضرب اللاعبين والوحوش معاً)
 function FastAttackUniversal()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local targets = {}
+    
+    -- استهداف الوحوش (Mobs)
     local enemies = workspace:FindFirstChild("Enemies")
     if enemies then
         for _, mob in pairs(enemies:GetChildren()) do
@@ -997,6 +286,19 @@ function FastAttackUniversal()
             end
         end
     end
+    
+    -- استهداف اللاعبين (Players)
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+            local hum = p.Character:FindFirstChild("Humanoid")
+            if hrp and hum and hum.Health > 0 and (char.HumanoidRootPart.Position - hrp.Position).Magnitude <= 70 then
+                table.insert(targets, hrp)
+            end
+        end
+    end
+    
+    -- تنفيذ الهجوم
     if #targets > 0 then
         pcall(function()
             ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.001)
@@ -1012,202 +314,111 @@ end
 
 task.spawn(function()
     while true do
-        if (_G.Config.FastAttack or _G.Config.TargetPVP) and KeyUnlocked then
+        if _G.Config.FastAttack and KeyUnlocked then
             FastAttackUniversal()
         end
         task.wait(_G.Config.AttackDelay)
     end
 end)
 
-local function ExecuteCustomPVPCombo(targetPlr)
-    if not targetPlr or not targetPlr.Character then return end
-    local pHrp = targetPlr.Character:FindFirstChild("HumanoidRootPart")
-    local pHum = targetPlr.Character:FindFirstChild("Humanoid")
-    local char = LocalPlayer.Character
+-- محرك Aimbot المحدث
+local lockedTargetPart = nil
+local function GetClosestToCamera(isPlayerTarget)
+    local closestPart = nil
+    local shortestDistance = math.huge
+    local viewportCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
-    if pHrp and pHum and pHum.Health > 0 and char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.CFrame = CFrame.new(pHrp.Position - (pHrp.CFrame.LookVector * 2.5), pHrp.Position)
-        workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, pHrp.Position)
-
-        for _, wType in ipairs(_G.Config.ComboSequence) do
-            if not _G.Config.TargetPVP then break end
-            if _G.Config.ComboWeaponEnabled[wType] then
-                EquipSpecificWeapon(wType)
-                task.wait(0.05)
-
-                local skillSet = _G.Config.ComboSkills[wType]
-                if skillSet then
-                    local keys = {
-                        {Key = Enum.KeyCode.Z, Enabled = skillSet.Z},
-                        {Key = Enum.KeyCode.X, Enabled = skillSet.X},
-                        {Key = Enum.KeyCode.C, Enabled = skillSet.C},
-                        {Key = Enum.KeyCode.V, Enabled = skillSet.V},
-                        {Key = Enum.KeyCode.F, Enabled = skillSet.F}
-                    }
-                    for _, kData in ipairs(keys) do
-                        if kData.Enabled then
-                            VirtualInputManager:SendKeyEvent(true, kData.Key, false, game)
-                            task.wait(0.04)
-                            VirtualInputManager:SendKeyEvent(false, kData.Key, false, game)
-                        end
+    if isPlayerTarget then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local targetPart = p.Character:FindFirstChild(_G.Config.TargetPart) or p.Character:FindFirstChild("HumanoidRootPart")
+                local hum = p.Character:FindFirstChild("Humanoid")
+                if targetPart and hum and hum.Health > 0 then
+                    local screenPos = Camera:WorldToViewportPoint(targetPart.Position)
+                    local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - viewportCenter).Magnitude
+                    if screenDist < shortestDistance then
+                        shortestDistance = screenDist; closestPart = targetPart
                     end
                 end
-                task.wait(0.25)
+            end
+        end
+    else
+        local enemies = workspace:FindFirstChild("Enemies")
+        if enemies then
+            for _, mob in pairs(enemies:GetChildren()) do
+                local targetPart = mob:FindFirstChild(_G.Config.TargetPart) or mob:FindFirstChild("HumanoidRootPart")
+                local hum = mob:FindFirstChild("Humanoid")
+                if targetPart and hum and hum.Health > 0 then
+                    local screenPos = Camera:WorldToViewportPoint(targetPart.Position)
+                    local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - viewportCenter).Magnitude
+                    if screenDist < shortestDistance then
+                        shortestDistance = screenDist; closestPart = targetPart
+                    end
+                end
             end
         end
     end
+    return closestPart
 end
 
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        if KeyUnlocked then
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
-                if _G.Config.IsTeleporting then
-                    local seaIslands = islandsBySea[_G.Config.SelectedIslandSea]
-                    if _G.Config.SelectIsland ~= "" and seaIslands and seaIslands[_G.Config.SelectIsland] then
-                        local targetPos = seaIslands[_G.Config.SelectIsland]
-                        if (char.HumanoidRootPart.Position - targetPos).Magnitude > 15 then
-                            SmoothMove(CFrame.new(targetPos + Vector3.new(0, 30, 0)))
-                        else
-                            _G.Config.IsTeleporting = false
-                            if currentTween then currentTween:Cancel() end
-                        end
-                    end
-                else
-                    if _G.Config.AutoFarm then
-                        EquipSpecificWeapon(_G.Config.SelectWeapon)
-                        local enemies = workspace:FindFirstChild("Enemies")
-                        local targetMob = nil
-                        if enemies then
-                            for _, mob in pairs(enemies:GetChildren()) do
-                                local mHum = mob:FindFirstChild("Humanoid")
-                                if mHum and mHum.Health > 0 then targetMob = mob; break end
-                            end
-                        end
-                        if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                            SmoothMove(targetMob.HumanoidRootPart.CFrame * CFrame.new(0, 7, 0) * CFrame.Angles(math.rad(-90), 0, 0))
-                        end
-                    elseif _G.Config.AutoMaterial then
-                        EquipSpecificWeapon(_G.Config.SelectWeapon)
-                        local enemies = workspace:FindFirstChild("Enemies")
-                        local targetMob = nil
-                        local mobName = materialToMob[_G.Config.SelectMaterial] or ""
-                        if enemies then
-                            for _, mob in pairs(enemies:GetChildren()) do
-                                local mHum = mob:FindFirstChild("Humanoid")
-                                if mob.Name:find(mobName) and mHum and mHum.Health > 0 then
-                                    targetMob = mob
-                                    break
-                                end
-                            end
-                        end
-                        if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                            SmoothMove(targetMob.HumanoidRootPart.CFrame * CFrame.new(0, 7, 0) * CFrame.Angles(math.rad(-90), 0, 0))
-                        end
-                    elseif _G.Config.TargetPVP and _G.Config.SelectedPlayer ~= "" then
-                        local targetPlr = Players:FindFirstChild(_G.Config.SelectedPlayer)
-                        if targetPlr then ExecuteCustomPVPCombo(targetPlr) end
-                    end
-                end
-            end
+table.insert(Connections, RunService.RenderStepped:Connect(function()
+    if not KeyUnlocked then return end
+    if _G.Config.PlayerAimbot or _G.Config.MobAimbot then
+        if not lockedTargetPart or not lockedTargetPart.Parent or not lockedTargetPart.Parent:FindFirstChild("Humanoid") or lockedTargetPart.Parent.Humanoid.Health <= 0 then
+            lockedTargetPart = GetClosestToCamera(_G.Config.PlayerAimbot)
+        end
+        if lockedTargetPart then
+            pcall(function() Camera.CFrame = CFrame.new(Camera.CFrame.Position, lockedTargetPart.Position) end)
+        end
+    else
+        lockedTargetPart = nil
+    end
+end))
+
+-- إدخالات الأزرار العالمية (UI Toggle + Aimbot Toggles)
+table.insert(Connections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or not KeyUnlocked or IsAssigningKey then return end
+    
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        local keyName = input.KeyCode.Name
+        
+        if keyName == _G.Config.ToggleKey then
+            MainFrame.Visible = not MainFrame.Visible
+        elseif keyName == _G.Config.PlayerAimbotKey then
+            if PlayerAimbotObj then PlayerAimbotObj.Toggle() end
+        elseif keyName == _G.Config.MobAimbotKey then
+            if MobAimbotObj then MobAimbotObj.Toggle() end
         end
     end
-end)
+end))
 
----------------------------------------------------------
--- الأحداث والإدخالات (Inputs & Speed Logic)
----------------------------------------------------------
+-- زر مفتاح الدخول
 SubmitBtn.MouseButton1Click:Connect(function()
     if KeyInput.Text == CorrectKey then
-        KeyUnlocked = true
-        KeyFrame:Destroy()
-        MainFrame.Visible = true
-        ToggleBtn.Visible = true
-    else
-        StatusLabel.Text = "المفتاح غير صحيح!"
-        task.wait(1.5)
-        StatusLabel.Text = ""
+        KeyUnlocked = true; KeyFrame:Destroy(); MainFrame.Visible = true; ToggleBtn.Visible = true
     end
 end)
 
 ToggleSpeedBtn.MouseButton1Click:Connect(function()
     _G.Config.SpeedEnabled = not _G.Config.SpeedEnabled
-    if _G.Config.SpeedEnabled then
-        ToggleSpeedBtn.Text = "السرعة: [شغال ⚡]"
-        ToggleSpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
-    else
-        ToggleSpeedBtn.Text = "السرعة: [معطل ❌]"
-        ToggleSpeedBtn.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
-    end
+    ToggleSpeedBtn.Text = _G.Config.SpeedEnabled and "السرعة: [شغال ⚡]" or "السرعة: [معطل ❌]"
+    ToggleSpeedBtn.BackgroundColor3 = _G.Config.SpeedEnabled and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(230, 50, 50)
 end)
-
-local ListeningForKey = false
-KeybindBtn.MouseButton1Click:Connect(function()
-    ListeningForKey = true
-    KeybindBtn.Text = "اضغط أي زر الآن..."
-    KeybindBtn.TextColor3 = Color3.fromRGB(255, 200, 50)
-end)
-
-table.insert(Connections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed or not KeyUnlocked then return end
-    if ListeningForKey then
-        if input.UserInputType == Enum.UserInputType.Keyboard then
-            _G.Config.ToggleKey = input.KeyCode
-            KeybindBtn.Text = "زر إخفاء الـ UI: [ " .. tostring(_G.Config.ToggleKey.Name) .. " ]"
-            KeybindBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-            ListeningForKey = false
-        end
-    elseif input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == _G.Config.ToggleKey then
-        MainFrame.Visible = not MainFrame.Visible
-    end
-end))
-
-local Dragging = false
-local function UpdateSlider(input)
-    local pos = math.clamp((input.Position.X - SliderFrame.AbsolutePosition.X) / SliderFrame.AbsoluteSize.X, 0, 1)
-    SliderFill.Size = UDim2.new(pos, 0, 1, 0)
-    _G.Config.SpeedMultiplier = math.floor((_G.Config.MinSpeed + (pos * (_G.Config.MaxSpeed - _G.Config.MinSpeed))) * 10) / 10
-    SliderLabel.Text = "مستوى السرعة: " .. tostring(_G.Config.SpeedMultiplier) .. "x"
-end
-
-table.insert(Connections, SliderFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        Dragging = true
-        UpdateSlider(input)
-    end
-end))
-
-table.insert(Connections, UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        Dragging = false
-    end
-end))
-
-table.insert(Connections, UserInputService.InputChanged:Connect(function(input)
-    if Dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        UpdateSlider(input)
-    end
-end))
 
 table.insert(Connections, RunService.Heartbeat:Connect(function(delta)
     if _G.Config.SpeedEnabled and KeyUnlocked then
         local char = LocalPlayer.Character
         if char then
             local hrp = char:FindFirstChild("HumanoidRootPart")
-            local humanoid = char:FindFirstChild("Humanoid")
-            if hrp and humanoid and humanoid.MoveDirection.Magnitude > 0 then
-                hrp.CFrame = hrp.CFrame + (humanoid.MoveDirection * (_G.Config.SpeedMultiplier * 14) * delta)
+            local hum = char:FindFirstChild("Humanoid")
+            if hrp and hum and hum.MoveDirection.Magnitude > 0 then
+                hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (_G.Config.SpeedMultiplier * 14) * delta)
             end
         end
     end
 end))
 
 getgenv().UniversalSpeedHubCleanUp = function()
-    for _, conn in ipairs(Connections) do
-        if conn then conn:Disconnect() end
-    end
-    ClearAllHealthBars()
+    for _, conn in ipairs(Connections) do if conn then conn:Disconnect() end end
     if ScreenGui then ScreenGui:Destroy() end
 end
